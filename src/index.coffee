@@ -25,7 +25,10 @@ app.get '/configurations.:format?', (req, res, next) ->
   , next
 
 app.post '/configuration/new.:format?', (req, res, next) ->
-  Configurations.set req.body?.configuration
+  configuration = req.body?.configuration
+  if configuration.id == 'new'
+    delete configuration.id
+  Configurations.set configuration
   .done (configuration) ->
     if req.params.format == 'json'
       res.send configuration ? {}
@@ -35,7 +38,10 @@ app.post '/configuration/new.:format?', (req, res, next) ->
 
 app.post '/configuration/:id.:format?', (req, res, next) ->
   console.log 'set by id', req.body?.configuration
-  Configurations.set req.body?.configuration
+  configuration = req.body?.configuration
+  if configuration.id == 'new'
+    delete configuration.id
+  Configurations.set configuration
   .done (configuration) ->
     if req.params.format == 'json'
       res.send configuration ? {}
