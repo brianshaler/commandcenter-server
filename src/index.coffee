@@ -50,7 +50,7 @@ app.post '/configuration/:id.:format?', (req, res, next) ->
   , next
 
 app.post '/configuration/:id/delete.:format?', (req, res, next) ->
-  Configurations.delete(req.params.id)
+  Configurations.delete req.params.id
   .done (data) ->
     res.send data?.configurations ? []
   , next

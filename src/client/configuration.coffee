@@ -54,8 +54,7 @@ module.exports = React.createClass
     newState = _.extend {}, @state, newProps
     @setState newState
 
-  appendDisplay: (e) ->
-    e.preventDefault()
+  getNextDisplayPosition: ->
     newX = -1
     newY = -1
     for row in [0..displayArray.rows-1]
@@ -71,6 +70,13 @@ module.exports = React.createClass
           newY = row
     unless newX >= 0 and newY >= 0
       return
+    [newX, newY]
+
+  appendDisplay: (e) ->
+    e.preventDefault()
+    nextPosition = @getNextDisplayPosition()
+    return unless nextPosition?
+    [newX, newY] = nextPosition
     displays = @state.displays
     displays.push
       x: newX
@@ -80,6 +86,15 @@ module.exports = React.createClass
     @setState
       displays: displays
       selectedDisplay: displays.length - 1
+
+  removeDisplay: (displayIndex) ->
+    (e) =>
+      e.preventDefault()
+      displays = _.filter @state.displays, (display, index) ->
+        index != displayIndex
+      @setState
+        displays: displays
+        selectedDisplay: -1
 
   onChangeDisplay: (displayIndex, prop) ->
     (e) =>
@@ -137,6 +152,12 @@ module.exports = React.createClass
     displayWidth = 30
     displayHeight = 6
 
+    if !@props.active
+      displayWidth *= 0.5
+      displayHeight *= 0.5
+
+    selectedDisplay = @state.selectedDisplay if @props.active
+
     drawArrow = (display, direction, displayIndex) =>
       switch direction[0]
         when 'top'
@@ -187,152 +208,171 @@ module.exports = React.createClass
             DOM.img
               src: '/images/arrow.png'
 
-    DOM.form
-      action: "/configuration/#{@state.id ? 'new'}"
-      method: 'post'
+    DOM.div
+      onClick: @props.onClick
     ,
-      DOM.input
-        name: "configuration[id]"
-        type: 'hidden'
-        value: @state.id
-      DOM.input
-        name: "configuration[name]"
-        type: 'hidden'
-        value: @state.name
-      _.flatten _.map displays, (display, displayIndex) ->
-        _.map display, (propVal, propKey) ->
-          DOM.input
-            key: "#{displayIndex}-#{propKey}"
-            type: 'hidden'
-            name: "configuration[displays][#{displayIndex}][#{propKey}]"
-            value: propVal
-      DOM.div null,
-        DOM.input
-          value: @state.name
-          placeholder: 'name'
-          onChange: (e) =>
-            @setState
-              name: e.target.value
-      DOM.div
-        style:
-          margin: '1em 0'
-          border: 'solid 1px #999'
-          backgroundColor: if @state.selectedDisplay >= 0
-            'rgba(0, 0, 0, 0.3)'
-          else
-            'rgba(0, 0, 0, 0.4)'
-          borderRadius: '0.7em'
-          width: "#{displayWidth}em"
-          height: "#{displayHeight}em"
+      DOM.form
+        action: "/configuration/#{@state.id ? 'new'}"
+        method: 'post'
+        onSubmit: (e) =>
+          @props.onSave e,
+            id: @state.id
+            name: @state.name
+            displays: @state.displays
+            createdAt: @state.createdAt
       ,
+        DOM.input
+          name: "configuration[id]"
+          type: 'hidden'
+          value: @state.id
+        DOM.input
+          name: "configuration[name]"
+          type: 'hidden'
+          value: @state.name
+        _.flatten _.map displays, (display, displayIndex) ->
+          _.map display, (propVal, propKey) ->
+            DOM.input
+              key: "#{displayIndex}-#{propKey}"
+              type: 'hidden'
+              name: "configuration[displays][#{displayIndex}][#{propKey}]"
+              value: propVal
+        DOM.div null,
+          if @props.active
+            DOM.input
+              value: @state.name
+              placeholder: 'name'
+              onChange: (e) =>
+                @setState
+                  name: e.target.value
+          else
+            DOM.span null, @state.name
         DOM.div
           style:
-            position: 'absolute'
+            margin: '0 0 1em 0'
+            border: 'solid 1px #999'
+            backgroundColor: if selectedDisplay >= 0
+              'rgba(0, 0, 0, 0.3)'
+            else
+              'rgba(0, 0, 0, 0.4)'
+            borderRadius: '0.7em'
+            width: "#{displayWidth}em"
+            height: "#{displayHeight}em"
         ,
-          _.map displays, (display, displayIndex) =>
-            DOM.div
-              key: displayIndex
-              style:
-                position: 'absolute'
-                left: "#{0.1 + display.x / displayArray.cols * displayWidth}em"
-                top: "#{0.1 + display.y / displayArray.rows * displayHeight}em"
-                width: "#{-0.2 + display.width / displayArray.cols * displayWidth}em"
-                height: "#{-0.2 + display.height / displayArray.rows * displayHeight}em"
-                # border: 'solid 1px #bbb'
-                borderRadius: '0.5em'
-                backgroundColor: if @state.selectedDisplay >= 0
-                  if @state.selectedDisplay == displayIndex
-                    'rgba(155, 200, 255, 0.7)'
-                  else
-                    'rgba(255, 255, 255, 0.3)'
-                else
-                  'rgba(100, 255, 100, 0.4)'
-              onClick: @selectDisplay displayIndex
-            , ' '
-          if @state.selectedDisplay >= 0
-            display = displays[@state.selectedDisplay]
-            _ directions
-            .filter (direction) ->
-              checkDirection display, direction
-            .map (direction) =>
-              # console.log 'direction', direction
-              drawArrow display, direction, @state.selectedDisplay
-            .value()
-          else
-            null
-
-      if @state.selectedDisplay >= 0
-        DOM.p null,
-          DOM.input
+          DOM.div
             style:
-              width: "#{displayWidth}em"
-            key: "url-#{@state.selectedDisplay}"
-            placeholder: 'url'
-            value: @state.displays[@state.selectedDisplay].url
-            onChange: @onChangeDisplay @state.selectedDisplay, 'url'
-      else
-        null
+              position: 'absolute'
+          ,
+            _.map displays, (display, displayIndex) =>
+              DOM.div
+                key: displayIndex
+                style:
+                  position: 'absolute'
+                  left: "#{0.1 + display.x / displayArray.cols * displayWidth}em"
+                  top: "#{0.1 + display.y / displayArray.rows * displayHeight}em"
+                  width: "#{-0.2 + display.width / displayArray.cols * displayWidth}em"
+                  height: "#{-0.2 + display.height / displayArray.rows * displayHeight}em"
+                  # border: 'solid 1px #bbb'
+                  borderRadius: '0.5em'
+                  backgroundColor: if selectedDisplay >= 0
+                    if selectedDisplay == displayIndex
+                      'rgba(155, 200, 255, 0.7)'
+                    else
+                      'rgba(255, 255, 255, 0.3)'
+                  else
+                    'rgba(100, 255, 100, 0.4)'
+                onClick: @selectDisplay displayIndex
+              , ' '
+            if selectedDisplay >= 0
+              display = displays[selectedDisplay]
+              _ directions
+              .filter (direction) ->
+                checkDirection display, direction
+              .map (direction) =>
+                # console.log 'direction', direction
+                drawArrow display, direction, selectedDisplay
+              .value()
+            else
+              null
 
-      DOM.p null,
-        DOM.input
-          type: 'button'
-          value: 'add display'
-          onClick: @appendDisplay
-
-      if @state.expanded
-        DOM.div null,
-          DOM.h4 null, @state.id
-          _.map displays, (display, displayIndex) =>
-            DOM.div
-              key: displayIndex
-            ,
-              DOM.p null, 'display ' + displayIndex
-              DOM.p null,
-                DOM.span null, 'x: '
-                DOM.input
-                  value: display.x
-                  onChange: @onChangeDisplay displayIndex, 'x'
-                  placeholder: 'x'
-              DOM.p null,
-                DOM.span null, 'y: '
-                DOM.input
-                  value: display.y
-                  onChange: @onChangeDisplay displayIndex, 'y'
-                  placeholder: 'y'
-              DOM.p null,
-                DOM.span null, 'w: '
-                DOM.input
-                  value: display.width
-                  onChange: @onChangeDisplay displayIndex, 'width'
-                  placeholder: 'width'
-              DOM.p null,
-                DOM.span null, 'h: '
-                DOM.input
-                  value: display.height
-                  onChange: @onChangeDisplay displayIndex, 'height'
-                  placeholder: 'height'
-              DOM.p null,
-                DOM.span null, 'u: '
-                DOM.input
-                  value: display.url
-                  onChange: @onChangeDisplay displayIndex, 'url'
-                  placeholder: 'url'
+        if selectedDisplay >= 0
           DOM.p null,
             DOM.input
-              type: 'button'
-              onClick: @appendDisplay
-              value: 'add display'
-      else
-        DOM.a
-          style:
-            display: 'none'
-          href: '#'
-          onClick: (e) =>
-            e.preventDefault()
-            @setState
-              expanded: true
-        , 'expand'
-      DOM.p null,
-        DOM.input
-          type: 'submit'
-          value: 'save'
+              style:
+                width: "#{displayWidth}em"
+              key: "url-#{selectedDisplay}"
+              placeholder: 'url'
+              value: @state.displays[selectedDisplay].url
+              onChange: @onChangeDisplay selectedDisplay, 'url'
+        else
+          null
+
+        if @props.active
+          DOM.p null,
+            if @getNextDisplayPosition()
+              DOM.input
+                type: 'button'
+                value: 'add display'
+                onClick: @appendDisplay
+            else
+              null
+            if selectedDisplay >= 0
+              DOM.input
+                type: 'button'
+                value: 'remove display'
+                onClick: @removeDisplay selectedDisplay
+            else
+              null
+        else
+          null
+
+        if @state.expanded
+          DOM.div null,
+            DOM.h4 null, @state.id
+            _.map displays, (display, displayIndex) =>
+              DOM.div
+                key: displayIndex
+              ,
+                DOM.p null, 'display ' + displayIndex
+                DOM.p null,
+                  DOM.span null, 'x: '
+                  DOM.input
+                    value: display.x
+                    onChange: @onChangeDisplay displayIndex, 'x'
+                    placeholder: 'x'
+                DOM.p null,
+                  DOM.span null, 'y: '
+                  DOM.input
+                    value: display.y
+                    onChange: @onChangeDisplay displayIndex, 'y'
+                    placeholder: 'y'
+                DOM.p null,
+                  DOM.span null, 'w: '
+                  DOM.input
+                    value: display.width
+                    onChange: @onChangeDisplay displayIndex, 'width'
+                    placeholder: 'width'
+                DOM.p null,
+                  DOM.span null, 'h: '
+                  DOM.input
+                    value: display.height
+                    onChange: @onChangeDisplay displayIndex, 'height'
+                    placeholder: 'height'
+                DOM.p null,
+                  DOM.span null, 'u: '
+                  DOM.input
+                    value: display.url
+                    onChange: @onChangeDisplay displayIndex, 'url'
+                    placeholder: 'url'
+        DOM.p null,
+          DOM.input
+            type: 'submit'
+            value: 'save'
+            style:
+              display: 'none' unless @props.active
+          DOM.input
+            type: 'button'
+            value: 'delete'
+            style:
+              display: 'none' unless @props.onDelete and @props.active
+            onClick: (e) =>
+              @props.onDelete e, @state.id
