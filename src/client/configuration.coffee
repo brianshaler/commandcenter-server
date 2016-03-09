@@ -151,10 +151,12 @@ module.exports = React.createClass
 
     displayWidth = 30
     displayHeight = 6
+    borderRadius = 0.7
 
     if !@props.active
       displayWidth *= 0.5
       displayHeight *= 0.5
+      borderRadius *= 0.5
 
     selectedDisplay = @state.selectedDisplay if @props.active
 
@@ -247,6 +249,7 @@ module.exports = React.createClass
           else
             DOM.span null, @state.name
         DOM.div
+          className: 'animate-all'
           style:
             margin: '0 0 1em 0'
             border: 'solid 1px #999'
@@ -254,7 +257,7 @@ module.exports = React.createClass
               'rgba(0, 0, 0, 0.3)'
             else
               'rgba(0, 0, 0, 0.4)'
-            borderRadius: '0.7em'
+            borderRadius: "#{borderRadius}em"
             width: "#{displayWidth}em"
             height: "#{displayHeight}em"
         ,
@@ -265,6 +268,7 @@ module.exports = React.createClass
             _.map displays, (display, displayIndex) =>
               DOM.div
                 key: displayIndex
+                className: 'animate-all'
                 style:
                   position: 'absolute'
                   left: "#{0.1 + display.x / displayArray.cols * displayWidth}em"
@@ -272,7 +276,7 @@ module.exports = React.createClass
                   width: "#{-0.2 + display.width / displayArray.cols * displayWidth}em"
                   height: "#{-0.2 + display.height / displayArray.rows * displayHeight}em"
                   # border: 'solid 1px #bbb'
-                  borderRadius: '0.5em'
+                  borderRadius: "#{borderRadius * 0.8}em"
                   backgroundColor: if selectedDisplay >= 0
                     if selectedDisplay == displayIndex
                       'rgba(155, 200, 255, 0.7)'
